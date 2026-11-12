@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <privapp-permissions package="com.blackout.focus">
+        <permission name="android.permission.WRITE_SECURE_SETTINGS" />
+        <permission name="android.permission.STATUS_BAR" />
+        <permission name="android.permission.MANAGE_USERS" />
+        <permission name="android.permission.SUSPEND_APPS" />
+        <permission name="android.permission.START_ACTIVITIES_FROM_BACKGROUND" />
+        <permission name="android.permission.STOP_APP_SWITCHES" />
+    </privapp-permissions>
+</permissions>

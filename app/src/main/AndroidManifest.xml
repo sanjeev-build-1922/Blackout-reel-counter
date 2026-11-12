@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 1. Overlay Permission for Full-Screen Blackout Window & Floating Reel Counter Pill -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- 2. Status Bar Collapse Permission to block Control Centre / Notification Shade -->
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+
+    <!-- 3. Foreground Service Permissions for Reliable Timer Execution -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 4. Biometric Authentication Permission for 4-Second Hold Unlock -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
+    <!-- 5. Camera / Flashlight Permissions -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.flash"
+        android:required="false" />
+
+    <!-- 6. Reboot Persistence & Installed App Listing for Allowed Apps Selector -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <application
+        android:name=".BlackoutApplication"
+        android:allowBackup="false"
+        android:icon="@drawable/ic_notification"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Blackout">
+
+        <!-- Main Setup & Reel Counter Dashboard Activity -->
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Blackout">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Lock-Screen Enforcer Activity: Renders Blackout UI + Reel Count directly OVER the Lock Screen -->
+        <activity
+            android:name=".ui.BlackoutLockScreenActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:resizeableActivity="false"
+            android:screenOrientation="portrait"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Blackout" />
+
+        <!-- Biometric Unlock Host Activity (Solid Black FragmentActivity for BiometricPrompt) -->
+        <activity
+            android:name=".ui.BiometricUnlockActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:resizeableActivity="false"
+            android:screenOrientation="portrait"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Blackout.BiometricHost" />
+
+        <!-- Foreground Service Driving the Target End-Time & WindowManager Blackout Overlay -->
+        <service
+            android:name=".service.BlackoutForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="distraction_blocking_focus_timer_overlay" />
+        </service>
+
+        <!-- Unified Accessibility Service:
+             1. Enforces Blackout Overlay, Lock Screen, Control Centre Collapse, and Settings Ejection.
+             2. Detects Instagram Reels & YouTube Shorts swipes in real-time, tracks exact time spent,
+                and manages the zero-notification FloatingReelHudManager. -->
+        <service
+            android:name=".service.BlackoutAccessibilityService"
+            android:enabled="true"
+            android:exported="false"
+            android:directBootAware="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- Notification Listener Service Capturing Allowed App Notifications & Alarm Categories -->
+        <service
+            android:name=".service.BlackoutNotificationListenerService"
+            android:enabled="true"
+            android:exported="false"
+            android:label="@string/notification_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Schedule Trigger Receiver for Automatic Recurring Blackout Windows -->
+        <receiver
+            android:name=".receiver.ScheduleTriggerReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Boot Receiver to Auto-Resume Active Session After Device Reboot -->
+        <receiver
+            android:name=".receiver.BootCompletedReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Device Admin / Root Device Owner Receiver for Kiosk Lock Task Mode -->
+        <receiver
+            android:name=".receiver.BlackoutDeviceAdminReceiver"
+            android:description="@string/accessibility_service_description"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_policies" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Home Screen Glance Widget for Reel Counter -->
+        <receiver
+            android:name=".widget.ReelGlanceWidgetReceiver"
+            android:exported="true"
+            android:label="Blackout Reel Counter">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/reel_widget_info" />
+        </receiver>
+
+    </application>
+
+</manifest>
